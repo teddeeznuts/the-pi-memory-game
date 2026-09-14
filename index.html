@@ -28,7 +28,7 @@
       --cream-subtle: rgba(252, 246, 189, 0.25);
       --text-light: #415a77;
       --text-dark: #1d2d44;
-      --success: #b7e4c7;        
+      --success: #b7e4c7;         
       --error: #f8d7da;
     }
 
@@ -521,7 +521,7 @@
       min-height: 1.2em;
     }
 
-    /* Bouncing Elements Layer */
+    /* Spawning Elements Layer (Instant Appearance) */
     #bouncing-layer {
       position: fixed;
       top: 0;
@@ -573,7 +573,7 @@
 </head>
 <body>
 
-  <!-- Bouncing Animation Layer -->
+  <!-- Spawning Animation Layer -->
   <div id="bouncing-layer"></div>
 
   <div class="game-wrapper">
@@ -790,7 +790,7 @@
 
     let practiceIndex = 0;
 
-    // --- Bouncing Animation State ---
+    // --- Spawning Animation State ---
     let bouncingAnimationId = null;
     let bouncingObjects = [];
 
@@ -1034,7 +1034,7 @@
       if (practiceIndex >= subPi.length) practiceIndex = subPi.length - 1;
 
       document.getElementById('practice-typed').innerText = subPi.substring(0, practiceIndex);
-      document.getElementById('practice-next').innerText = "?";
+      document.getElementById('practice-next').innerText = subPi[practiceIndex] || "?";
       document.getElementById('practice-hint').innerText = subPi.substring(practiceIndex + 1, practiceIndex + 6);
     }
 
@@ -1049,13 +1049,12 @@
 
       const count = parseInt(document.getElementById('custom-digit-count').value) || 50;
       const subPi = PI_DIGITS.substring(0, count);
-      const expectedDigit = subPi[practiceIndex];
 
-      if (val === expectedDigit) {
+      if (val === subPi[practiceIndex]) {
         playSound('correct');
         practiceIndex++;
         if (practiceIndex >= subPi.length) {
-          practiceIndex = 0;
+          practiceIndex = subPi.length - 1;
           try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(err){}
         }
         updatePracticeDisplay();
@@ -1064,68 +1063,102 @@
       }
     }
 
-    // --- Bouncing Fun Feature ---
+    // --- Spawning Pi's & Scientists Logic (Instant Appearance) ---
     function handlePiButtonClick() {
       const layer = document.getElementById('bouncing-layer');
-      if (layer.classList.contains('active')) {
-        layer.classList.remove('active');
-        layer.innerHTML = "";
-        cancelAnimationFrame(bouncingAnimationId);
-        bouncingObjects = [];
-        return;
-      }
-
       layer.classList.add('active');
-      bouncingObjects = [];
 
-      for (let i = 0; i < 6; i++) {
-        const el = document.createElement('div');
-        el.className = i % 2 === 0 ? 'bouncing-item pi-symbol' : 'bouncing-item';
-        
-        if (i % 2 !== 0) {
-          const sci = scientists[i % scientists.length];
-          el.innerHTML = `<img src="${sci.img}" class="scientist-img">`;
-        } else {
-          el.innerText = "π";
-        }
+      // Add a new item directly anywhere inside the screen instantly
+      spawnBouncingItem();
 
-        let posX = Math.random() * (window.innerWidth - 80);
-        let posY = Math.random() * (window.innerHeight - 80);
-        let velX = (Math.random() - 0.5) * 4;
-        let velY = (Math.random() - 0.5) * 4;
+      if (!bouncingAnimationId) {
+        startBouncingLoop();
+      }
+    }
 
-        el.style.left = posX + 'px';
-        el.style.top = posY + 'px';
+    function spawnBouncingItem() {
+      const layer = document.getElementById('bouncing-layer');
+      const itemEl = document.createElement('div');
+      itemEl.className = 'bouncing-item';
 
-        el.addEventListener('click', () => {
-          playSound('bounce');
-          el.style.transform = 'scale(1.5)';
-          setTimeout(() => el.style.transform = 'scale(1)', 150);
-        });
+      const isPi = Math.random() < 0.5;
+      
+      // Random position anywhere within the safe viewport bounds
+      const maxX = Math.max(0, window.innerWidth - 80);
+      const maxY = Math.max(0, window.innerHeight - 80);
+      
+      let objData = {
+        element: itemEl,
+        x: Math.random() * maxX,
+        y: Math.random() * maxY,
+        vx: (Math.random() - 0.5) * 4 + 1.5,
+        vy: (Math.random() - 0.5) * 4 + 1.5
+      };
 
-        layer.appendChild(el);
-        bouncingObjects.push({ element: el, x: posX, y: posY, vx: velX, vy: velY });
+      if (isPi) {
+        itemEl.classList.add('pi-symbol');
+        itemEl.innerText = 'π';
+      } else {
+        itemEl.classList.add('scientist-img');
+        const randomSci = scientists[Math.floor(Math.random() * scientists.length)];
+        itemEl.style.backgroundImage = `url('${randomSci.img}')`;
+        itemEl.style.backgroundSize = 'cover';
+        itemEl.style.backgroundPosition = 'center';
       }
 
-      function animateBounce() {
+      // Set initial transform immediately so it appears instantly where placed
+      itemEl.style.transform = `translate(${objData.x}px, ${objData.y}px)`;
+
+      itemEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playSound('correct');
+        try {
+          confetti({
+            particleCount: 25,
+            spread: 45,
+            origin: { x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight }
+          });
+        } catch(err) {}
+
+        itemEl.style.transform = `translate(${objData.x}px, ${objData.y}px) scale(1.5)`;
+        itemEl.style.opacity = '0';
+        setTimeout(() => {
+          itemEl.remove();
+          bouncingObjects = bouncingObjects.filter(o => o.element !== itemEl);
+          if (bouncingObjects.length === 0) {
+            layer.classList.remove('active');
+            cancelAnimationFrame(bouncingAnimationId);
+            bouncingAnimationId = null;
+          }
+        }, 150);
+      });
+
+      layer.appendChild(itemEl);
+      bouncingObjects.push(objData);
+    }
+
+    function startBouncingLoop() {
+      function update() {
+        const maxX = window.innerWidth - 70;
+        const maxY = window.innerHeight - 70;
+
         bouncingObjects.forEach(obj => {
           obj.x += obj.vx;
           obj.y += obj.vy;
 
-          if (obj.x <= 0 || obj.x >= window.innerWidth - 60) obj.vx *= -1;
-          if (obj.y <= 0 || obj.y >= window.innerHeight - 60) obj.vy *= -1;
+          if (obj.x <= 0) { obj.x = 0; obj.vx *= -1; playSound('bounce'); }
+          else if (obj.x >= maxX) { obj.x = maxX; obj.vx *= -1; playSound('bounce'); }
 
-          obj.element.style.left = obj.x + 'px';
-          obj.element.style.top = obj.y + 'px';
+          if (obj.y <= 0) { obj.y = 0; obj.vy *= -1; playSound('bounce'); }
+          else if (obj.y >= maxY) { obj.y = maxY; obj.vy *= -1; playSound('bounce'); }
+
+          obj.element.style.transform = `translate(${obj.x}px, ${obj.y}px)`;
         });
-        bouncingAnimationId = requestAnimationFrame(animateBounce);
+
+        bouncingAnimationId = requestAnimationFrame(update);
       }
-      animateBounce();
+      bouncingAnimationId = requestAnimationFrame(update);
     }
   </script>
 </body>
 </html>
- 
-
-  
-  
