@@ -21,7 +21,7 @@
       --pastel-mint: #b7e4c7;
       
       --bg-blue: #1b2a41;         
-      --bg-dark-card: #273b5a;   
+      --bg-dark-card: #273b5a;    
       --accent-blue: #a3c4f3;    
       --btn-light-blue: #c0fdff; 
       --cream-accent: #fcf6bd;   
@@ -49,6 +49,24 @@
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Ctext x='25' y='55' fill='rgba(195, 224, 229, 0.15)' font-size='36' font-family='serif'%3E%CF%80%3C/text%3E%3C/svg%3E");
       overflow: hidden;
       position: relative;
+    }
+
+    /* Floating Bouncing Pi Style */
+    #floating-pi {
+      position: absolute;
+      font-family: 'Playfair Display', serif;
+      font-size: 4rem;
+      color: var(--pastel-yellow);
+      text-shadow: 0 4px 15px rgba(0,0,0,0.4);
+      cursor: grab;
+      z-index: 5;
+      pointer-events: auto;
+      user-select: none;
+      transition: color 0.2s;
+    }
+    #floating-pi:active {
+      cursor: grabbing;
+      color: var(--pastel-pink);
     }
 
     .game-wrapper {
@@ -349,6 +367,25 @@
       text-transform: uppercase;
       letter-spacing: 1px;
       margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .live-leaderboard-indicator {
+      font-size: 0.75rem;
+      background: rgba(183, 228, 199, 0.2);
+      color: var(--pastel-green);
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--pastel-green);
+      animation: pulse-glow 2s infinite;
+    }
+
+    @keyframes pulse-glow {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
     }
 
     .leaderboard-list {
@@ -370,6 +407,11 @@
       color: #ffffff;
     }
 
+    .leaderboard-item.first-place {
+      background: rgba(255, 242, 204, 0.15);
+      border: 1px solid var(--pastel-yellow);
+    }
+
     .leaderboard-rank {
       font-weight: 800;
       color: var(--pastel-pink);
@@ -386,6 +428,10 @@
     .leaderboard-avatar {
       width: 24px;
       height: 24px;
+      min-width: 24px;
+      min-height: 24px;
+      max-width: 24px;
+      max-height: 24px;
       border-radius: 50%;
       object-fit: cover;
       border: 1px solid var(--pastel-yellow);
@@ -458,16 +504,25 @@
     .avatar-circle {
       width: 90px;
       height: 90px;
+      min-width: 90px;
+      min-height: 90px;
+      max-width: 90px;
+      max-height: 90px;
       border-radius: 50%;
       border: 3px solid var(--pastel-pink);
       overflow: hidden;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
       background: var(--bg-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .avatar-circle img {
       width: 100%;
       height: 100%;
+      min-width: 100%;
+      min-height: 100%;
       object-fit: cover;
     }
 
@@ -520,61 +575,12 @@
       margin-bottom: 12px;
       min-height: 1.2em;
     }
-
-    /* Spawning Elements Layer (Instant Appearance) */
-    #bouncing-layer {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      pointer-events: none;
-      overflow: hidden;
-      z-index: 999;
-      display: none;
-    }
-
-    #bouncing-layer.active {
-      display: block;
-    }
-
-    .bouncing-item {
-      position: absolute;
-      font-weight: 800;
-      user-select: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      pointer-events: auto;
-      cursor: pointer;
-      transition: transform 0.1s ease;
-    }
-
-    .bouncing-item:hover {
-      transform: scale(1.2);
-    }
-
-    .bouncing-item.pi-symbol {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--pastel-yellow);
-      text-shadow: 0 2px 10px rgba(0,0,0,0.5);
-    }
-
-    .bouncing-item.scientist-img {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      border: 2px solid var(--pastel-blue);
-      object-fit: cover;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    }
   </style>
 </head>
 <body>
 
-  <!-- Spawning Animation Layer -->
-  <div id="bouncing-layer"></div>
+  <!-- Floating Bouncing Pi Element -->
+  <div id="floating-pi">π</div>
 
   <div class="game-wrapper">
     <div class="game-title">the <span>π</span> memory game</div>
@@ -583,7 +589,6 @@
       <div id="user-display" class="user-pill">Guest</div>
       <button class="btn-top-setting" onclick="playSound('click'); openLoginModal()">log in / sign in</button>
       <button class="btn-top-setting" onclick="playSound('click'); openSetupModal()">Avatar</button>
-      <button class="btn-top-setting" onclick="playSound('click'); handlePiButtonClick()">π</button>
     </div>
 
     <div class="outer-card">
@@ -613,7 +618,10 @@
 
           <!-- LEADERBOARD -->
           <div class="leaderboard-container">
-            <div class="leaderboard-title">Leaderboard</div>
+            <div class="leaderboard-title">
+              <span>Leaderboard</span>
+              <span class="live-leaderboard-indicator">1st: <span id="current-first-place" style="color:var(--pastel-yellow);">None</span></span>
+            </div>
             <div id="leaderboard-list" class="leaderboard-list">
               <!-- Dynamically Populated -->
             </div>
@@ -746,14 +754,6 @@
           gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
           osc.start(now);
           osc.stop(now + 0.2);
-        } else if (type === 'bounce') {
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(300 + Math.random() * 300, now);
-          osc.frequency.exponentialRampToValueAtTime(100, now + 0.08);
-          gain.gain.setValueAtTime(0.05, now);
-          gain.gain.linearRampToValueAtTime(0.001, now + 0.08);
-          osc.start(now);
-          osc.stop(now + 0.08);
         }
       } catch (e) {
         console.error("Audio error:", e);
@@ -790,10 +790,6 @@
 
     let practiceIndex = 0;
 
-    // --- Spawning Animation State ---
-    let bouncingAnimationId = null;
-    let bouncingObjects = [];
-
     window.onload = function() {
       updateAvatarDisplay();
       updateUserPill();
@@ -802,6 +798,13 @@
 
       document.getElementById('game-input').addEventListener('input', handleGameInput);
       document.getElementById('practice-input').addEventListener('input', handlePracticeInput);
+
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'pi_leaderboard') {
+          leaderboardData = JSON.parse(e.newValue) || [];
+          renderLeaderboard();
+        }
+      });
     };
 
     function setupTimeSelectors() {
@@ -873,7 +876,7 @@
 
     function updateUserPill() {
       const pill = document.getElementById('user-display');
-      pill.innerHTML = `<img src="${scientists[currentAvatarIndex].img}" class="leaderboard-avatar" style="width:20px;height:20px;"> ${currentUser}`;
+      pill.innerHTML = `<img src="${scientists[currentAvatarIndex].img}" class="leaderboard-avatar" style="width:20px;height:20px;min-width:20px;min-height:20px;"> ${currentUser}`;
     }
 
     function closeModal(modalId) {
@@ -882,15 +885,26 @@
 
     function renderLeaderboard() {
       const list = document.getElementById('leaderboard-list');
+      const firstPlaceEl = document.getElementById('current-first-place');
       list.innerHTML = "";
-      leaderboardData.sort((a,b) => b.score - a.score);
+      
+      leaderboardData.sort((a, b) => b.score - a.score);
+
       if (leaderboardData.length === 0) {
         list.innerHTML = `<div style="text-align: center; color: var(--pastel-blue); font-size: 0.9rem; padding: 10px;">No scores yet. Play to top the leaderboard!</div>`;
+        if (firstPlaceEl) firstPlaceEl.innerText = "None";
         return;
       }
+
+      const currentFirst = leaderboardData[0];
+      if (firstPlaceEl) {
+        firstPlaceEl.innerText = `${currentFirst.name} (${currentFirst.score})`;
+      }
+
       leaderboardData.forEach((item, idx) => {
+        const isFirst = idx === 0;
         list.innerHTML += `
-          <div class="leaderboard-item">
+          <div class="leaderboard-item ${isFirst ? 'first-place' : ''}">
             <div class="leaderboard-rank">#${idx+1}</div>
             <div class="leaderboard-user">
               <img src="${item.avatar}" class="leaderboard-avatar">
@@ -988,74 +1002,88 @@
         }
       } else {
         playSound('incorrect');
-        document.getElementById('feedback-msg').innerText = `Incorrect! Correct digit was '${expectedDigit}'`;
-        setTimeout(() => endGame(false), 1500);
+        endGame(false);
       }
     }
 
-    function endGame(isWin) {
+    function endGame(won) {
       clearInterval(gameTimerInterval);
       clearInterval(questionTimerInterval);
-
-      if (isWin || gameScore > 0) {
-        updateLeaderboard(gameScore, currentUser, scientists[currentAvatarIndex].img);
-        if (isWin || !fastestTime || gameTimerVal < fastestTime) {
-          fastestTime = gameTimerVal;
-          document.getElementById('val-fastest-time').innerText = fastestTime.toFixed(1) + 's';
-        }
+      
+      const feedback = document.getElementById('feedback-msg');
+      if (won) {
+        feedback.style.color = "var(--pastel-green)";
+        feedback.innerText = "Incredible! You memorized the whole sequence!";
+        if (typeof confetti === 'function') confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+      } else {
+        feedback.style.color = "var(--pastel-pink)";
+        feedback.innerText = `Game Over! Final Score: ${gameScore} digits.`;
       }
 
-      if (isWin) {
-        try { confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } }); } catch(err){}
+      updateLeaderboard(gameScore, currentUser, scientists[currentAvatarIndex].img);
+      
+      if (gameTimerVal > 0 && (fastestTime === null || gameTimerVal < fastestTime)) {
+        fastestTime = gameTimerVal;
+        document.getElementById('val-fastest-time').innerText = fastestTime.toFixed(1) + "s";
       }
 
       setTimeout(() => {
         openMenu();
-      }, 2000);
+      }, 3000);
     }
 
+    // --- Practice Functions ---
     function openPractice() {
-      switchScreen('practice-screen');
       practiceIndex = 0;
+      switchScreen('practice-screen');
       updatePracticeDisplay();
-      document.getElementById('practice-input').value = "";
       document.getElementById('practice-input').focus();
-    }
-
-    function updatePracticeLength() {
-      updatePracticeDisplay();
-    }
-
-    function updatePracticeDisplay() {
-      let count = parseInt(document.getElementById('custom-digit-count').value) || 50;
-      if (count > 500) count = 500;
-      const subPi = PI_DIGITS.substring(0, count);
-
-      if (practiceIndex >= subPi.length) practiceIndex = subPi.length - 1;
-
-      document.getElementById('practice-typed').innerText = subPi.substring(0, practiceIndex);
-      document.getElementById('practice-next').innerText = subPi[practiceIndex] || "?";
-      document.getElementById('practice-hint').innerText = subPi.substring(practiceIndex + 1, practiceIndex + 6);
     }
 
     function focusPracticeInput() {
       document.getElementById('practice-input').focus();
     }
 
+    function updatePracticeLength() {
+      const countInput = document.getElementById('custom-digit-count');
+      let val = parseInt(countInput.value) || 50;
+      if (val < 1) val = 1;
+      if (val > 500) val = 500;
+      countInput.value = val;
+      
+      if (practiceIndex >= val) {
+        practiceIndex = 0;
+      }
+      updatePracticeDisplay();
+    }
+
+    function updatePracticeDisplay() {
+      const maxCount = parseInt(document.getElementById('custom-digit-count').value) || 50;
+      const typedSpan = document.getElementById('practice-typed');
+      const nextSpan = document.getElementById('practice-next');
+      const hintSpan = document.getElementById('practice-hint');
+
+      if (practiceIndex < maxCount) {
+        typedSpan.innerText = PI_DIGITS.substring(0, practiceIndex);
+        nextSpan.innerText = PI_DIGITS[practiceIndex];
+        hintSpan.innerText = PI_DIGITS.substring(practiceIndex + 1, maxCount);
+      }
+    }
+
     function handlePracticeInput(e) {
       const val = e.target.value;
-      e.target.value = "";
       if (!val) return;
+      e.target.value = "";
 
-      const count = parseInt(document.getElementById('custom-digit-count').value) || 50;
-      const subPi = PI_DIGITS.substring(0, count);
+      const maxCount = parseInt(document.getElementById('custom-digit-count').value) || 50;
+      const expectedDigit = PI_DIGITS[practiceIndex];
 
-      if (val === subPi[practiceIndex]) {
+      if (val === expectedDigit) {
         playSound('correct');
         practiceIndex++;
-        if (practiceIndex >= subPi.length) {
-          practiceIndex = subPi.length - 1;
-          try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(err){}
+        if (practiceIndex >= maxCount) {
+          practiceIndex = 0;
+          if (typeof confetti === 'function') confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
         }
         updatePracticeDisplay();
       } else {
@@ -1063,102 +1091,73 @@
       }
     }
 
-    // --- Spawning Pi's & Scientists Logic (Instant Appearance) ---
-    function handlePiButtonClick() {
-      const layer = document.getElementById('bouncing-layer');
-      layer.classList.add('active');
+    // --- Floating & Bouncing / Draggable Pi Logic ---
+    const piEl = document.getElementById('floating-pi');
+    let posX = Math.random() * (window.innerWidth - 80);
+    let posY = Math.random() * (window.innerHeight - 80);
+    let velX = 2;
+    let velY = 1.5;
+    let isDragging = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
 
-      // Add a new item directly anywhere inside the screen instantly
-      spawnBouncingItem();
+    piEl.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      dragOffsetX = e.clientX - piEl.offsetLeft;
+      dragOffsetY = e.clientY - piEl.offsetTop;
+      piEl.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
 
-      if (!bouncingAnimationId) {
-        startBouncingLoop();
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      posX = e.clientX - dragOffsetX;
+      posY = e.clientY - dragOffsetY;
+      piEl.style.left = posX + 'px';
+      piEl.style.top = posY + 'px';
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        piEl.style.cursor = 'grab';
+        // Give it a small throw velocity based on where it was dropped
+        velX = (Math.random() - 0.5) * 4;
+        velY = (Math.random() - 0.5) * 4;
       }
+    });
+
+    function animatePi() {
+      if (!isDragging) {
+        posX += velX;
+        posY += velY;
+
+        const maxX = window.innerWidth - piEl.offsetWidth;
+        const maxY = window.innerHeight - piEl.offsetHeight;
+
+        if (posX <= 0) {
+          posX = 0;
+          velX *= -1;
+        } else if (posX >= maxX) {
+          posX = maxX;
+          velX *= -1;
+        }
+
+        if (posY <= 0) {
+          posY = 0;
+          velY *= -1;
+        } else if (posY >= maxY) {
+          posY = maxY;
+          velY *= -1;
+        }
+
+        piEl.style.left = posX + 'px';
+        piEl.style.top = posY + 'px';
+      }
+      requestAnimationFrame(animatePi);
     }
 
-    function spawnBouncingItem() {
-      const layer = document.getElementById('bouncing-layer');
-      const itemEl = document.createElement('div');
-      itemEl.className = 'bouncing-item';
-
-      const isPi = Math.random() < 0.5;
-      
-      // Random position anywhere within the safe viewport bounds
-      const maxX = Math.max(0, window.innerWidth - 80);
-      const maxY = Math.max(0, window.innerHeight - 80);
-      
-      let objData = {
-        element: itemEl,
-        x: Math.random() * maxX,
-        y: Math.random() * maxY,
-        vx: (Math.random() - 0.5) * 4 + 1.5,
-        vy: (Math.random() - 0.5) * 4 + 1.5
-      };
-
-      if (isPi) {
-        itemEl.classList.add('pi-symbol');
-        itemEl.innerText = 'π';
-      } else {
-        itemEl.classList.add('scientist-img');
-        const randomSci = scientists[Math.floor(Math.random() * scientists.length)];
-        itemEl.style.backgroundImage = `url('${randomSci.img}')`;
-        itemEl.style.backgroundSize = 'cover';
-        itemEl.style.backgroundPosition = 'center';
-      }
-
-      // Set initial transform immediately so it appears instantly where placed
-      itemEl.style.transform = `translate(${objData.x}px, ${objData.y}px)`;
-
-      itemEl.addEventListener('click', (e) => {
-        e.stopPropagation();
-        playSound('correct');
-        try {
-          confetti({
-            particleCount: 25,
-            spread: 45,
-            origin: { x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight }
-          });
-        } catch(err) {}
-
-        itemEl.style.transform = `translate(${objData.x}px, ${objData.y}px) scale(1.5)`;
-        itemEl.style.opacity = '0';
-        setTimeout(() => {
-          itemEl.remove();
-          bouncingObjects = bouncingObjects.filter(o => o.element !== itemEl);
-          if (bouncingObjects.length === 0) {
-            layer.classList.remove('active');
-            cancelAnimationFrame(bouncingAnimationId);
-            bouncingAnimationId = null;
-          }
-        }, 150);
-      });
-
-      layer.appendChild(itemEl);
-      bouncingObjects.push(objData);
-    }
-
-    function startBouncingLoop() {
-      function update() {
-        const maxX = window.innerWidth - 70;
-        const maxY = window.innerHeight - 70;
-
-        bouncingObjects.forEach(obj => {
-          obj.x += obj.vx;
-          obj.y += obj.vy;
-
-          if (obj.x <= 0) { obj.x = 0; obj.vx *= -1; playSound('bounce'); }
-          else if (obj.x >= maxX) { obj.x = maxX; obj.vx *= -1; playSound('bounce'); }
-
-          if (obj.y <= 0) { obj.y = 0; obj.vy *= -1; playSound('bounce'); }
-          else if (obj.y >= maxY) { obj.y = maxY; obj.vy *= -1; playSound('bounce'); }
-
-          obj.element.style.transform = `translate(${obj.x}px, ${obj.y}px)`;
-        });
-
-        bouncingAnimationId = requestAnimationFrame(update);
-      }
-      bouncingAnimationId = requestAnimationFrame(update);
-    }
+    requestAnimationFrame(animatePi);
   </script>
 </body>
-</html>
+</html>     
