@@ -1044,6 +1044,7 @@
 
     function handlePracticeInput(e) {
       const val = e.target.value;
+      e.target.value = "";
       if (!val) return;
 
       const count = parseInt(document.getElementById('custom-digit-count').value) || 50;
@@ -1054,98 +1055,77 @@
         playSound('correct');
         practiceIndex++;
         if (practiceIndex >= subPi.length) {
-          try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(err){}
           practiceIndex = 0;
+          try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(err){}
         }
         updatePracticeDisplay();
       } else {
         playSound('incorrect');
       }
-      document.getElementById('practice-input').value = "";
     }
 
-    // --- Bouncing Pi & Scientist Pop Feature ---
+    // --- Bouncing Fun Feature ---
     function handlePiButtonClick() {
-      playSound('click');
       const layer = document.getElementById('bouncing-layer');
+      if (layer.classList.contains('active')) {
+        layer.classList.remove('active');
+        layer.innerHTML = "";
+        cancelAnimationFrame(bouncingAnimationId);
+        bouncingObjects = [];
+        return;
+      }
+
       layer.classList.add('active');
+      bouncingObjects = [];
 
-      // Add a new bouncing element every time the π button is clicked
-      const isScientist = Math.random() > 0.5;
-      const el = document.createElement('div');
-      el.className = 'bouncing-item';
-
-      if (isScientist) {
-        el.classList.add('scientist-img');
-        const randSci = scientists[Math.floor(Math.random() * scientists.length)];
-        el.style.backgroundImage = `url('${randSci.img}')`;
-        el.style.backgroundSize = 'cover';
-      } else {
-        el.classList.add('pi-symbol');
-        el.innerText = 'π';
-      }
-
-      // Random starting positions and velocities
-      let posX = Math.random() * (window.innerWidth - 80);
-      let posY = Math.random() * (window.innerHeight - 80);
-      let velX = (Math.random() - 0.5) * 4;
-      let velY = (Math.random() - 0.5) * 4;
-
-      el.style.left = posX + 'px';
-      el.style.top = posY + 'px';
-
-      // Click to pop (remove) element
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        playSound('bounce');
-        try { confetti({ particleCount: 20, spread: 40, origin: { x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight } }); } catch(err){}
-        el.remove();
-        bouncingObjects = bouncingObjects.filter(item => item.element !== el);
-        if (bouncingObjects.length === 0) {
-          layer.classList.remove('active');
-        }
-      });
-
-      layer.appendChild(el);
-      bouncingObjects.push({ element: el, x: posX, y: posY, vx: velX, vy: velY });
-
-      // Start animation loop if not already running
-      if (!bouncingAnimationId) {
-        startBouncingLoop();
-      }
-    }
-
-    function startBouncingLoop() {
-      function animate() {
-        const layer = document.getElementById('bouncing-layer');
-        if (bouncingObjects.length === 0) {
-          layer.classList.remove('active');
-          bouncingAnimationId = null;
-          return;
+      for (let i = 0; i < 6; i++) {
+        const el = document.createElement('div');
+        el.className = i % 2 === 0 ? 'bouncing-item pi-symbol' : 'bouncing-item';
+        
+        if (i % 2 !== 0) {
+          const sci = scientists[i % scientists.length];
+          el.innerHTML = `<img src="${sci.img}" class="scientist-img">`;
+        } else {
+          el.innerText = "π";
         }
 
+        let posX = Math.random() * (window.innerWidth - 80);
+        let posY = Math.random() * (window.innerHeight - 80);
+        let velX = (Math.random() - 0.5) * 4;
+        let velY = (Math.random() - 0.5) * 4;
+
+        el.style.left = posX + 'px';
+        el.style.top = posY + 'px';
+
+        el.addEventListener('click', () => {
+          playSound('bounce');
+          el.style.transform = 'scale(1.5)';
+          setTimeout(() => el.style.transform = 'scale(1)', 150);
+        });
+
+        layer.appendChild(el);
+        bouncingObjects.push({ element: el, x: posX, y: posY, vx: velX, vy: velY });
+      }
+
+      function animateBounce() {
         bouncingObjects.forEach(obj => {
           obj.x += obj.vx;
           obj.y += obj.vy;
 
-          // Bounce off screen edges
-          if (obj.x <= 0 || obj.x >= window.innerWidth - 60) {
-            obj.vx *= -1;
-            playSound('bounce');
-          }
-          if (obj.y <= 0 || obj.y >= window.innerHeight - 60) {
-            obj.vy *= -1;
-            playSound('bounce');
-          }
+          if (obj.x <= 0 || obj.x >= window.innerWidth - 60) obj.vx *= -1;
+          if (obj.y <= 0 || obj.y >= window.innerHeight - 60) obj.vy *= -1;
 
           obj.element.style.left = obj.x + 'px';
           obj.element.style.top = obj.y + 'px';
         });
-
-        bouncingAnimationId = requestAnimationFrame(animate);
+        bouncingAnimationId = requestAnimationFrame(animateBounce);
       }
-      bouncingAnimationId = requestAnimationFrame(animate);
+      animateBounce();
     }
   </script>
 </body>
 </html>
+ 
+
+  
+  
