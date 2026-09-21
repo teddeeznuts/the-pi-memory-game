@@ -14,6 +14,29 @@
   
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
+  <!-- Firebase SDKs for Global Leaderboard -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, onSnapshot, query, orderBy, limit, setDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // REPLACE WITH YOUR FIREBASE CONFIGURATION OR DEMO SETUP
+    const firebaseConfig = {
+      apiKey: "AIzaSyDummyKeyForDemoPurposesOnly12345",
+      authDomain: "pi-memory-game-global.firebaseapp.com",
+      projectId: "pi-memory-game-global",
+      storageBucket: "pi-memory-game-global.appspot.com",
+      messagingSenderId: "123456789012",
+      appId: "1:123456789012:web:abcdef1234567890"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Expose Firebase tools globally to game scripts
+    window.db = db;
+    window.firebaseModules = { collection, addDocs, getDocs, onSnapshot, query, orderBy, limit, setDoc, doc, getDoc };
+  </script>
+
   <style>
     :root {
       --pastel-blue: #c3e0e5;    
@@ -622,7 +645,7 @@
           <!-- LEADERBOARD -->
           <div class="leaderboard-container">
             <div class="leaderboard-title">
-              <span>Leaderboard</span>
+              <span>Global Leaderboard</span>
               <span class="live-leaderboard-indicator">1st: <span id="current-first-place" style="color:var(--pastel-yellow);">None</span></span>
             </div>
             <div id="leaderboard-list" class="leaderboard-list">
@@ -687,7 +710,7 @@
     <div class="modal-card">
       <button class="close-modal-btn" onclick="playSound('click'); closeModal('login-modal')">×</button>
       <h2 style="color: var(--pastel-yellow); margin-top: 0;">Sign In / Register</h2>
-      <p style="color: var(--pastel-blue); font-size: 0.9rem;">Choose a unique username to save your scores!</p>
+      <p style="color: var(--pastel-blue); font-size: 0.9rem;">Choose a unique username to save your scores globally!</p>
       
       <input type="text" id="login-username" class="name-input" placeholder="Enter Unique Username" maxlength="15" autocomplete="off">
       <div id="login-error" class="error-msg"></div>
@@ -784,7 +807,7 @@
     let highscore = 0;
     let fastestTime = null;
 
-    let leaderboardData = JSON.parse(localStorage.getItem('pi_leaderboard')) || [];
+    let leaderboardData = [];
 
     let gameScore = 0;
     let gameTimerVal = 0.0;
@@ -796,19 +819,36 @@
     window.onload = function() {
       updateAvatarDisplay();
       updateUserPill();
-      renderLeaderboard();
       setupTimeSelectors();
+
+      // Setup real-time global listener with Firebase once available
+      const checkFirebaseReady = setInterval(() => {
+        if (window.db && window.firebaseModules) {
+          clearInterval(checkFirebaseReady);
+          initGlobalLeaderboardListener();
+        }
+      }, 100);
 
       document.getElementById('game-input').addEventListener('input', handleGameInput);
       document.getElementById('practice-input').addEventListener('input', handlePracticeInput);
-
-      window.addEventListener('storage', (e) => {
-        if (e.key === 'pi_leaderboard') {
-          leaderboardData = JSON.parse(e.newValue) || [];
-          renderLeaderboard();
-        }
-      });
     };
+
+    function initGlobalLeaderboardListener() {
+      const { collection, query, orderBy, limit, onSnapshot } = window.firebaseModules;
+      const q = query(collection(window.db, "global_leaderboard"), orderBy("score", "desc"), limit(20));
+      
+      onSnapshot(q, (snapshot) => {
+        leaderboardData = [];
+        snapshot.forEach((doc) => {
+          leaderboardData.push(doc.data());
+        });
+        renderLeaderboard();
+      }, (error) => {
+        console.error("Firestore sync error:", error);
+        // Fallback to empty/local if network fails
+        renderLeaderboard();
+      });
+    }
 
     function setupTimeSelectors() {
       const opts = document.querySelectorAll('.time-opt');
@@ -894,7 +934,7 @@
       leaderboardData.sort((a, b) => b.score - a.score);
 
       if (leaderboardData.length === 0) {
-        list.innerHTML = `<div style="text-align: center; color: var(--pastel-blue); font-size: 0.9rem; padding: 10px;">No scores yet. Play to top the leaderboard!</div>`;
+        list.innerHTML = `<div style="text-align: center; color: var(--pastel-blue); font-size: 0.9rem; padding: 10px;">No global scores yet. Play to top the leaderboard!</div>`;
         if (firstPlaceEl) firstPlaceEl.innerText = "None";
         return;
       }
@@ -919,16 +959,22 @@
       });
     }
 
-    function updateLeaderboard(score, name, avatar) {
-      const existing = leaderboardData.find(u => u.name === name);
-      if (existing) {
-        if (score > existing.score) existing.score = score;
-        existing.avatar = avatar;
-      } else {
-        leaderboardData.push({ name, score, avatar });
+    async function updateLeaderboard(score, name, avatar) {
+      if (!window.db || !window.firebaseModules) {
+        // Fallback if offline
+        return;
       }
-      localStorage.setItem('pi_leaderboard', JSON.stringify(leaderboardData));
-      renderLeaderboard();
+      try {
+        const { doc, getDoc, setDoc } = window.firebaseModules;
+        const userDocRef = doc(window.db, "global_leaderboard", name);
+        const docSnap = await getDoc(userDocRef);
+
+        if (!docSnap.exists() || score > docSnap.data().score) {
+          await setDoc(userDocRef, { name, score, avatar, updatedAt: Date.now() });
+        }
+      } catch (err) {
+        console.error("Error updating global score:", err);
+      }
     }
 
     function handlePlayButtonClick() {
@@ -1037,19 +1083,121 @@
 
     // --- Practice Functions ---
     function openPractice() {
-      practiceIndex = 0;
       switchScreen('practice-screen');
-      updatePracticeDisplay();
+      practiceIndex = 0;
+      updatePracticeLength();
+      document.getElementById('practice-input').value = "";
       document.getElementById('practice-input').focus();
+    }
+
+    function updatePracticeLength() {
+      practiceIndex = 0;
+      renderPracticeView();
+      document.getElementById('practice-input').value = "";
     }
 
     function focusPracticeInput() {
       document.getElementById('practice-input').focus();
     }
 
-    function updatePracticeLength() {
-      const countInput = document.getElementById('custom-digit-count');
+    function renderPracticeView() {
+      const maxCount = parseInt(document.getElementById('custom-digit-count').value) || 50;
+      const typed = PI_DIGITS.substring(0, practiceIndex);
+      const next = practiceIndex < maxCount ? PI_DIGITS[practiceIndex] : "";
+      const hint = practiceIndex + 1 < maxCount ? PI_DIGITS.substring(practiceIndex + 1, maxCount) : "";
+
+      document.getElementById('practice-typed').innerText = typed;
+      const nextEl = document.getElementById('practice-next');
+      if (practiceIndex < maxCount) {
+        nextEl.style.display = "inline-block";
+        nextEl.innerText = "?";
+      } else {
+        nextEl.style.display = "none";
+      }
+      document.getElementById('practice-hint').innerText = hint;
     }
+
+    function handlePracticeInput(e) {
+      const val = e.target.value;
+      if (!val) return;
+      e.target.value = "";
+
+      const maxCount = parseInt(document.getElementById('custom-digit-count').value) || 50;
+      if (practiceIndex >= maxCount) return;
+
+      const expected = PI_DIGITS[practiceIndex];
+      if (val === expected) {
+        playSound('correct');
+        practiceIndex++;
+        renderPracticeView();
+        if (practiceIndex >= maxCount) {
+          if (typeof confetti === 'function') confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        }
+      } else {
+        playSound('incorrect');
+      }
+    }
+
+    // --- Floating Bouncing Pi Physics ---
+    const piEl = document.getElementById('floating-pi');
+    let posX = window.innerWidth - 120;
+    let posY = 80;
+    let velX = 1.2;
+    let velY = 0.9;
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+
+    piEl.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      dragStartX = e.clientX - posX;
+      dragStartY = e.clientY - posY;
+      piEl.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      posX = e.clientX - dragStartX;
+      posY = e.clientY - dragStartY;
+      piEl.style.left = posX + 'px';
+      piEl.style.top = posY + 'px';
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        piEl.style.cursor = 'grab';
+      }
+    });
+
+    function animatePi() {
+      if (!isDragging) {
+        posX += velX;
+        posY += velY;
+
+        const maxX = window.innerWidth - piEl.offsetWidth;
+        const maxY = window.innerHeight - piEl.offsetHeight;
+
+        if (posX <= 0 || posX >= maxX) {
+          velX *= -1;
+          posX = Math.max(0, Math.min(posX, maxX));
+        }
+        if (posY <= 0 || posY >= maxY) {
+          velY *= -1;
+          posY = Math.max(0, Math.min(posY, maxY));
+        }
+
+        piEl.style.left = posX + 'px';
+        piEl.style.top = posY + 'px';
+      }
+      requestAnimationFrame(animatePi);
+    }
+    
+    piEl.style.position = 'absolute';
+    piEl.style.left = posX + 'px';
+    piEl.style.top = posY + 'px';
+    requestAnimationFrame(animatePi);
   </script>
 </body>
 </html>
