@@ -802,8 +802,8 @@
     let currentAvatarIndex = parseInt(localStorage.getItem('pi_avatar')) || 0;
     let currentUser = localStorage.getItem('pi_user') || "Guest";
     let selectedSpeedLimit = 3;
-    let highscore = 0;
-    let fastestTime = null;
+    let highscore = parseInt(localStorage.getItem('pi_highscore')) || 0;
+    let fastestTime = localStorage.getItem('pi_fastest') ? parseFloat(localStorage.getItem('pi_fastest')) : null;
 
     let leaderboardData = [];
 
@@ -818,6 +818,8 @@
       updateAvatarDisplay();
       updateUserPill();
       setupTimeSelectors();
+      document.getElementById('val-highscore').innerText = highscore;
+      document.getElementById('val-fastest-time').innerText = fastestTime !== null ? fastestTime.toFixed(1) + 's' : '--';
 
       // Setup real-time global listener with Firebase once available
       const checkFirebaseReady = setInterval(() => {
@@ -829,6 +831,9 @@
 
       document.getElementById('game-input').addEventListener('input', handleGameInput);
       document.getElementById('practice-input').addEventListener('input', handlePracticeInput);
+      
+      // Floating Pi dragging logic
+      setupFloatingPi();
     };
 
     function initGlobalLeaderboardListener() {
@@ -1029,7 +1034,6 @@
       clearInterval(questionTimerInterval);
       
       const expectedDigit = PI_DIGITS[gameScore];
-
       if (val === expectedDigit) {
         playSound('correct');
         gameScore++;
@@ -1038,31 +1042,34 @@
         
         if (gameScore > highscore) {
           highscore = gameScore;
+          localStorage.setItem('pi_highscore', highscore);
           document.getElementById('val-highscore').innerText = highscore;
         }
 
         updateLeaderboard(gameScore, currentUser, scientists[currentAvatarIndex].img);
-
         nextGameTurn();
       } else {
         playSound('incorrect');
+        document.getElementById('feedback-msg').innerText = `Incorrect! It was '${expectedDigit}'`;
         endGame(false);
       }
     }
 
-    function endGame(isTimeout) {
-      clearInterval(questionTimerInterval);
+    function endGame(success) {
       clearInterval(gameTimerInterval);
+      clearInterval(questionTimerInterval);
+      document.getElementById('game-input').blur();
 
       if (gameScore > 0) {
+        if (fastestTime === null || gameTimerVal < fastestTime) {
+          fastestTime = gameTimerVal;
+          localStorage.setItem('pi_fastest', fastestTime);
+          document.getElementById('val-fastest-time').innerText = fastestTime.toFixed(1) + 's';
+        }
         updateLeaderboard(gameScore, currentUser, scientists[currentAvatarIndex].img);
-      }
-
-      const msg = document.getElementById('feedback-msg');
-      msg.innerText = isTimeout ? "Time's up! Game Over." : "Incorrect digit! Game Over.";
-      
-      if (gameScore >= 10 && typeof confetti === 'function') {
-        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        if (gameScore >= 10) {
+          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        }
       }
 
       setTimeout(() => {
@@ -1070,10 +1077,15 @@
       }, 2000);
     }
 
+    // Practice Arena functionality
     function openPractice() {
-      switchScreen('practice-screen');
       practiceIndex = 0;
       updatePracticeDisplay();
+      switchScreen('practice-screen');
+      document.getElementById('practice-input').focus();
+    }
+
+    function focusPracticeInput() {
       document.getElementById('practice-input').focus();
     }
 
@@ -1082,33 +1094,69 @@
     }
 
     function updatePracticeDisplay() {
-      const maxCount = parseInt(document.getElementById('custom-digit-count').value) || 50;
-      const typed = PI_DIGITS.substring(0, practiceIndex);
-      const next = practiceIndex < PI_DIGITS.length ? PI_DIGITS[practiceIndex] : "";
-      const hint = PI_DIGITS.substring(practiceIndex + 1, Math.min(practiceIndex + 10, maxCount));
-      
-      document.getElementById('practice-typed').innerText = typed;
-      document.getElementById('practice-next').innerText = next;
-      document.getElementById('practice-hint').innerText = hint;
+      const maxLen = parseInt(document.getElementById('custom-digit-count').value) || 50;
+      if (practiceIndex > maxLen) practiceIndex = maxLen;
+
+      document.getElementById('practice-typed').innerText = PI_DIGITS.substring(0, practiceIndex);
+      if (practiceIndex < maxLen) {
+        document.getElementById('practice-next').style.display = 'inline';
+        document.getElementById('practice-next').innerText = PI_DIGITS[practiceIndex];
+        document.getElementById('practice-hint').innerText = PI_DIGITS.substring(practiceIndex + 1, maxLen);
+      } else {
+        document.getElementById('practice-next').style.display = 'none';
+        document.getElementById('practice-hint').innerText = " (Completed!)";
+      }
     }
 
     function handlePracticeInput(e) {
       const val = e.target.value;
-      if (!val) return;
       e.target.value = "";
+      if (!val) return;
 
-      const expectedDigit = PI_DIGITS[practiceIndex];
-      if (val === expectedDigit) {
+      const maxLen = parseInt(document.getElementById('custom-digit-count').value) || 50;
+      if (practiceIndex >= maxLen) return;
+
+      if (val === PI_DIGITS[practiceIndex]) {
         playSound('correct');
         practiceIndex++;
         updatePracticeDisplay();
+        if (practiceIndex >= maxLen) {
+          confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+        }
       } else {
         playSound('incorrect');
       }
     }
 
-    function focusPracticeInput() {
-      document.getElementById('practice-input').focus();
+    // Dragging logic for the floating Pi symbol
+    function setupFloatingPi() {
+      const piEl = document.getElementById('floating-pi');
+      let isDragging = false;
+      let startX, startY, initialX = 50, initialY = 50;
+
+      piEl.style.top = '20px';
+      piEl.style.right = '30px';
+
+      piEl.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        piEl.style.cursor = 'grabbing';
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        piEl.style.transform = `translate(${dx}px, ${dy}px)`;
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          piEl.style.cursor = 'grab';
+        }
+      });
     }
   </script>
 </body>
