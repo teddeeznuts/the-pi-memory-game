@@ -1029,7 +1029,7 @@
       clearInterval(questionTimerInterval);
       
       const expectedDigit = PI_DIGITS[gameScore];
-      
+
       if (val === expectedDigit) {
         playSound('correct');
         gameScore++;
@@ -1040,95 +1040,75 @@
           highscore = gameScore;
           document.getElementById('val-highscore').innerText = highscore;
         }
-        
+
+        updateLeaderboard(gameScore, currentUser, scientists[currentAvatarIndex].img);
+
         nextGameTurn();
       } else {
         playSound('incorrect');
-        document.getElementById('feedback-msg').innerText = `Incorrect! It was '${expectedDigit}'`;
-        endGame(true);
+        endGame(false);
       }
     }
 
-    function endGame(isWrong) {
-      clearInterval(gameTimerInterval);
+    function endGame(isTimeout) {
       clearInterval(questionTimerInterval);
-      
-      let finalTime = parseFloat(document.getElementById('game-timer').innerText);
-      if (!isWrong) {
-        if (fastestTime === null || finalTime < fastestTime) {
-          fastestTime = finalTime;
-          document.getElementById('val-fastest-time').innerText = fastestTime.toFixed(1) + "s";
-        }
-      }
+      clearInterval(gameTimerInterval);
 
       if (gameScore > 0) {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
         updateLeaderboard(gameScore, currentUser, scientists[currentAvatarIndex].img);
+      }
+
+      const msg = document.getElementById('feedback-msg');
+      msg.innerText = isTimeout ? "Time's up! Game Over." : "Incorrect digit! Game Over.";
+      
+      if (gameScore >= 10 && typeof confetti === 'function') {
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
       }
 
       setTimeout(() => {
         openMenu();
-      }, 2500);
+      }, 2000);
     }
 
-    // --- Practice Arena Logic ---
     function openPractice() {
       switchScreen('practice-screen');
-      updatePracticeLength();
-      document.getElementById('practice-input').value = "";
-      focusPracticeInput();
+      practiceIndex = 0;
+      updatePracticeDisplay();
+      document.getElementById('practice-input').focus();
     }
 
     function updatePracticeLength() {
-      practiceIndex = 0;
-      renderPracticeView();
+      updatePracticeDisplay();
     }
 
-    function renderPracticeView() {
-      const countInput = document.getElementById('custom-digit-count');
-      let maxLen = parseInt(countInput.value) || 50;
-      if (maxLen > 500) maxLen = 500;
-      if (maxLen < 1) maxLen = 1;
-      countInput.value = maxLen;
-
-      const typedSub = PI_DIGITS.substring(0, practiceIndex);
-      const nextSub = practiceIndex < maxLen ? PI_DIGITS[practiceIndex] : "";
-      const hintSub = practiceIndex + 1 < maxLen ? PI_DIGITS.substring(practiceIndex + 1, maxLen) : "";
-
-      document.getElementById('practice-typed').innerText = typedSub;
-      document.getElementById('practice-next').innerText = nextSub || "✓";
-      document.getElementById('practice-hint').innerText = hintSub;
-    }
-
-    function focusPracticeInput() {
-      document.getElementById('practice-input').focus();
+    function updatePracticeDisplay() {
+      const maxCount = parseInt(document.getElementById('custom-digit-count').value) || 50;
+      const typed = PI_DIGITS.substring(0, practiceIndex);
+      const next = practiceIndex < PI_DIGITS.length ? PI_DIGITS[practiceIndex] : "";
+      const hint = PI_DIGITS.substring(practiceIndex + 1, Math.min(practiceIndex + 10, maxCount));
+      
+      document.getElementById('practice-typed').innerText = typed;
+      document.getElementById('practice-next').innerText = next;
+      document.getElementById('practice-hint').innerText = hint;
     }
 
     function handlePracticeInput(e) {
       const val = e.target.value;
-      e.target.value = "";
       if (!val) return;
+      e.target.value = "";
 
-      const countInput = document.getElementById('custom-digit-count');
-      let maxLen = parseInt(countInput.value) || 50;
-
-      if (practiceIndex < maxLen) {
-        const expected = PI_DIGITS[practiceIndex];
-        if (val === expected) {
-          playSound('correct');
-          practiceIndex++;
-          renderPracticeView();
-          if (practiceIndex >= maxLen) {
-            confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
-          }
-        } else {
-          playSound('incorrect');
-        }
+      const expectedDigit = PI_DIGITS[practiceIndex];
+      if (val === expectedDigit) {
+        playSound('correct');
+        practiceIndex++;
+        updatePracticeDisplay();
+      } else {
+        playSound('incorrect');
       }
+    }
+
+    function focusPracticeInput() {
+      document.getElementById('practice-input').focus();
     }
   </script>
 </body>
