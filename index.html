@@ -84,9 +84,10 @@
       font-size: 4rem;
       color: var(--pastel-yellow);
       text-shadow: 0 4px 15px rgba(0,0,0,0.4);
-      z-index: 50;
+      z-index: 1; /* Sits behind interactive UI cards but visible on background */
       pointer-events: none;
       user-select: none;
+      will-change: transform, left, top;
     }
 
     .game-wrapper {
@@ -783,10 +784,12 @@
     // --- DVD Bouncing Pi Animation Logic ---
     function setupFloatingPi() {
       const piElem = document.getElementById('floating-pi');
-      let posX = Math.random() * (window.innerWidth - 80);
-      let posY = Math.random() * (window.innerHeight - 80);
-      let velocityX = 2;
-      let velocityY = 2;
+      if (!piElem) return;
+
+      let posX = Math.random() * Math.max(100, window.innerWidth - 100);
+      let posY = Math.random() * Math.max(100, window.innerHeight - 100);
+      let velocityX = 2.2;
+      let velocityY = 1.8;
 
       const colors = ['#fff2cc', '#c3e0e5', '#f8d7da', '#e2afff', '#b7e4c7', '#c0fdff'];
       let colorIndex = 0;
@@ -881,9 +884,7 @@
         }
       }, 100);
 
-      document.getElementById('game-input').addEventListener('input', handleGameInput);
-      document.getElementById('practice-input').addEventListener('input', handlePracticeInput);
-      
+      // Initialize the sliding bouncing Pi animation
       setupFloatingPi();
     };
 
@@ -898,7 +899,7 @@
         });
         renderLeaderboard();
       }, (error) => {
-        console.error("Firestore sync error (Check your Firestore Rules):", error);
+        console.error("Firestore sync error:", error);
         renderLeaderboard();
       });
     }
@@ -1012,25 +1013,29 @@
       });
     }
 
-    async function updateLeaderboard(score, name, avatar) {
-      if (!window.db || !window.firebaseModules) {
-        console.warn("Firebase DB not initialized yet.");
-        return;
-      }
-      try {
-        const { doc, getDoc, setDoc } = window.firebaseModules;
-        const userDocRef = doc(window.db, "global_leaderboard", name);
-        const docSnap = await getDoc(userDocRef);
-
-        if (!docSnap.exists() || score > docSnap.data().score) {
-          await setDoc(userDocRef, { name, score, avatar, updatedAt: Date.now() });
-        }
-      } catch (err) {
-        console.error("Error updating global score (Check Firestore Security Rules):", err);
-      }
+    function handlePlayButtonClick() {
+      switchScreen('play-screen');
     }
 
-    // Handlers for gameplay/practice would continue here...
+    function openPractice() {
+      switchScreen('practice-screen');
+    }
+
+    function updatePracticeLength() {
+      // Placeholder for practice length change
+    }
+
+    function focusPracticeInput() {
+      document.getElementById('practice-input').focus();
+    }
+
+    function handleGameInput() {
+      // Game logic stub
+    }
+
+    function handlePracticeInput() {
+      // Practice logic stub
+    }
   </script>
 </body>
 </html>
