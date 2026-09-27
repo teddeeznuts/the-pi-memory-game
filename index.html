@@ -19,24 +19,23 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs, onSnapshot, query, orderBy, limit, setDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // REPLACE WITH YOUR FIREBASE CONFIGURATION OR DEMO SETUP
-  const firebaseConfig = {
-  apiKey: "AIzaSyD4s0_LSAgTHksLkCMInwusNz_XbZvKT0Y",
-  authDomain: "the-pi-memory-game.firebaseapp.com",
-  projectId: "the-pi-memory-game",
-  storageBucket: "the-pi-memory-game.firebasestorage.app",
-  messagingSenderId: "253254410316",
-  appId: "1:253254410316:web:bca3c731652024e146d4e9",
-  measurementId: "G-J4RW6G99VQ"
-};
+    const firebaseConfig = {
+      apiKey: "AIzaSyD4s0_LSAgTHksLkCMInwusNz_XbZvKT0Y",
+      authDomain: "the-pi-memory-game.firebaseapp.com",
+      projectId: "the-pi-memory-game",
+      storageBucket: "the-pi-memory-game.firebasestorage.app",
+      messagingSenderId: "253254410316",
+      appId: "1:253254410316:web:bca3c731652024e146d4e9",
+      measurementId: "G-J4RW6G99VQ"
+    };
+    
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // Expose Firebase tools globally to game scripts
     window.db = db;
-    window.firebaseModules = { collection, addDocs, getDocs, onSnapshot, query, orderBy, limit, setDoc, doc, getDoc };
+    // Fixed: changed addDocs to addDoc
+    window.firebaseModules = { collection, addDoc, getDocs, onSnapshot, query, orderBy, limit, setDoc, doc, getDoc };
   </script>
-
   <style>
     :root {
       --pastel-blue: #c3e0e5;    
