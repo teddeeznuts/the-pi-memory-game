@@ -75,24 +75,18 @@
       position: relative;
     }
 
-    /* Floating Bouncing Pi Style */
+    /* DVD-Style Bouncing Pi Style */
     #floating-pi {
       position: absolute;
-      top: 20px;
-      right: 30px;
+      top: 0;
+      left: 0;
       font-family: 'Playfair Display', serif;
       font-size: 4rem;
       color: var(--pastel-yellow);
       text-shadow: 0 4px 15px rgba(0,0,0,0.4);
-      cursor: grab;
       z-index: 50;
-      pointer-events: auto;
+      pointer-events: none;
       user-select: none;
-      touch-action: none;
-    }
-    #floating-pi:active {
-      cursor: grabbing;
-      color: var(--pastel-pink);
     }
 
     .game-wrapper {
@@ -605,7 +599,7 @@
 </head>
 <body>
 
-  <!-- Floating Bouncing Pi Element -->
+  <!-- DVD-Style Bouncing Pi Element -->
   <div id="floating-pi">π</div>
 
   <div class="game-wrapper">
@@ -784,6 +778,63 @@
       } catch (e) {
         console.error("Audio error:", e);
       }
+    }
+
+    // --- DVD Bouncing Pi Animation Logic ---
+    function setupFloatingPi() {
+      const piElem = document.getElementById('floating-pi');
+      let posX = Math.random() * (window.innerWidth - 80);
+      let posY = Math.random() * (window.innerHeight - 80);
+      let velocityX = 2;
+      let velocityY = 2;
+
+      const colors = ['#fff2cc', '#c3e0e5', '#f8d7da', '#e2afff', '#b7e4c7', '#c0fdff'];
+      let colorIndex = 0;
+
+      function updatePiColor() {
+        colorIndex = (colorIndex + 1) % colors.length;
+        piElem.style.color = colors[colorIndex];
+      }
+
+      function animatePi() {
+        const maxX = window.innerWidth - piElem.offsetWidth;
+        const maxY = window.innerHeight - piElem.offsetHeight;
+
+        posX += velocityX;
+        posY += velocityY;
+
+        let hit = false;
+        if (posX <= 0) {
+          posX = 0;
+          velocityX *= -1;
+          hit = true;
+        } else if (posX >= maxX) {
+          posX = maxX;
+          velocityX *= -1;
+          hit = true;
+        }
+
+        if (posY <= 0) {
+          posY = 0;
+          velocityY *= -1;
+          hit = true;
+        } else if (posY >= maxY) {
+          posY = maxY;
+          velocityY *= -1;
+          hit = true;
+        }
+
+        if (hit) {
+          updatePiColor();
+        }
+
+        piElem.style.left = posX + 'px';
+        piElem.style.top = posY + 'px';
+
+        requestAnimationFrame(animatePi);
+      }
+
+      requestAnimationFrame(animatePi);
     }
 
     // --- Extended Pi String & Scientists ---
@@ -1018,29 +1069,28 @@
         bar.style.width = '0%';
       }, 50);
 
-      let startTime = Date.now();
+      let timeLeft = selectedSpeedLimit * 10;
       questionTimerInterval = setInterval(() => {
-        let elapsed = (Date.now() - startTime) / 1000;
-        if (elapsed >= selectedSpeedLimit) {
+        timeLeft--;
+        if (timeLeft <= 0) {
           clearInterval(questionTimerInterval);
-          endGame(false);
+          handleGameOver("Time's up!");
         }
-      }, 50);
+      }, 100);
     }
 
     function handleGameInput(e) {
       const val = e.target.value;
       if (!val) return;
-      
-      clearInterval(questionTimerInterval);
-      
+
       const expectedDigit = PI_DIGITS[gameScore];
+
       if (val === expectedDigit) {
         playSound('correct');
         gameScore++;
         document.getElementById('current-score').innerText = gameScore;
         document.getElementById('typed-sequence').innerText = PI_DIGITS.substring(0, gameScore);
-        
+
         if (gameScore > highscore) {
           highscore = gameScore;
           localStorage.setItem('pi_highscore', highscore);
@@ -1048,45 +1098,43 @@
         }
 
         updateLeaderboard(gameScore, currentUser, scientists[currentAvatarIndex].img);
+
+        clearInterval(questionTimerInterval);
         nextGameTurn();
       } else {
         playSound('incorrect');
-        document.getElementById('feedback-msg').innerText = `Incorrect! It was '${expectedDigit}'`;
-        endGame(false);
+        clearInterval(questionTimerInterval);
+        clearInterval(gameTimerInterval);
+        handleGameOver("Wrong digit!");
       }
     }
 
-    function endGame(success) {
+    function handleGameOver(reason) {
       clearInterval(gameTimerInterval);
       clearInterval(questionTimerInterval);
-      document.getElementById('game-input').blur();
 
-      if (gameScore > 0) {
-        if (fastestTime === null || gameTimerVal < fastestTime) {
-          fastestTime = gameTimerVal;
-          localStorage.setItem('pi_fastest', fastestTime);
-          document.getElementById('val-fastest-time').innerText = fastestTime.toFixed(1) + 's';
-        }
-        updateLeaderboard(gameScore, currentUser, scientists[currentAvatarIndex].img);
-        if (gameScore >= 10) {
-          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-        }
+      document.getElementById('feedback-msg').innerHTML = `<span style="color:var(--pastel-pink);">${reason} Game Over! Final Score: ${gameScore}</span>`;
+      
+      if (gameScore >= 10) {
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      }
+
+      if (gameScore > 0 && (fastestTime === null || gameTimerVal < fastestTime)) {
+        fastestTime = gameTimerVal;
+        localStorage.setItem('pi_fastest', fastestTime);
+        document.getElementById('val-fastest-time').innerText = fastestTime.toFixed(1) + 's';
       }
 
       setTimeout(() => {
         openMenu();
-      }, 2000);
+      }, 2500);
     }
 
-    // Practice Arena functionality
+    // --- Practice Arena Logic ---
     function openPractice() {
+      switchScreen('practice-screen');
       practiceIndex = 0;
       updatePracticeDisplay();
-      switchScreen('practice-screen');
-      document.getElementById('practice-input').focus();
-    }
-
-    function focusPracticeInput() {
       document.getElementById('practice-input').focus();
     }
 
@@ -1095,18 +1143,19 @@
     }
 
     function updatePracticeDisplay() {
-      const maxLen = parseInt(document.getElementById('custom-digit-count').value) || 50;
-      if (practiceIndex > maxLen) practiceIndex = maxLen;
+      const maxCount = parseInt(document.getElementById('custom-digit-count').value) || 50;
+      const typed = PI_DIGITS.substring(0, practiceIndex);
+      const next = practiceIndex < maxCount ? PI_DIGITS[practiceIndex] : "";
+      const hint = practiceIndex + 1 < maxCount ? PI_DIGITS.substring(practiceIndex + 1, maxCount) : "";
 
-      document.getElementById('practice-typed').innerText = PI_DIGITS.substring(0, practiceIndex);
-      if (practiceIndex < maxLen) {
-        document.getElementById('practice-next').style.display = 'inline';
-        document.getElementById('practice-next').innerText = PI_DIGITS[practiceIndex];
-        document.getElementById('practice-hint').innerText = PI_DIGITS.substring(practiceIndex + 1, maxLen);
-      } else {
-        document.getElementById('practice-next').style.display = 'none';
-        document.getElementById('practice-hint').innerText = " (Completed!)";
-      }
+      document.getElementById('practice-typed').innerText = typed;
+      const nextEl = document.getElementById('practice-next');
+      nextEl.innerText = next ? next : "✓";
+      document.getElementById('practice-hint').innerText = hint;
+    }
+
+    function focusPracticeInput() {
+      document.getElementById('practice-input').focus();
     }
 
     function handlePracticeInput(e) {
@@ -1114,49 +1163,22 @@
       e.target.value = "";
       if (!val) return;
 
-      const maxLen = parseInt(document.getElementById('custom-digit-count').value) || 50;
-      if (practiceIndex >= maxLen) return;
+      const maxCount = parseInt(document.getElementById('custom-digit-count').value) || 50;
+      if (practiceIndex >= maxCount) return;
 
-      if (val === PI_DIGITS[practiceIndex]) {
+      const expectedDigit = PI_DIGITS[practiceIndex];
+
+      if (val === expectedDigit) {
         playSound('correct');
         practiceIndex++;
         updatePracticeDisplay();
-        if (practiceIndex >= maxLen) {
-          confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+
+        if (practiceIndex >= maxCount) {
+          confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
         }
       } else {
         playSound('incorrect');
       }
-    }
-
-    // Fixed Dragging logic for the floating Pi symbol
-    function setupFloatingPi() {
-      const piEl = document.getElementById('floating-pi');
-      let isDragging = false;
-      let startX = 0, startY = 0;
-      let posX = 0, posY = 0;
-
-      piEl.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        startX = e.clientX - posX;
-        startY = e.clientY - posY;
-        piEl.style.cursor = 'grabbing';
-        e.preventDefault();
-      });
-
-      window.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        posX = e.clientX - startX;
-        posY = e.clientY - startY;
-        piEl.style.transform = `translate(${posX}px, ${posY}px)`;
-      });
-
-      window.addEventListener('mouseup', () => {
-        if (isDragging) {
-          isDragging = false;
-          piEl.style.cursor = 'grab';
-        }
-      });
     }
   </script>
 </body>
